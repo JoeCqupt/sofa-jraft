@@ -3236,8 +3236,7 @@ public class NodeImpl implements Node, RaftServerService {
                 return new Status(RaftError.EINVAL, "Not in current configuration");
             }
 
-            final long lastLogIndex = this.logManager.getLastLogIndex();
-            if (!this.replicatorGroup.transferLeadershipTo(peerId, lastLogIndex)) {
+            if (!this.replicatorGroup.transferLeadershipTo(peerId)) {
                 LOG.warn("No such peer {}.", peer);
                 return new Status(RaftError.EINVAL, "No such peer %s", peer);
             }

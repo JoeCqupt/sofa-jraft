@@ -239,9 +239,15 @@ public class ReplicatorGroupImpl implements ReplicatorGroup {
     }
 
     @Override
+    @Deprecated
     public boolean transferLeadershipTo(final PeerId peer, final long logIndex) {
+        return transferLeadershipTo(peer);
+    }
+
+    @Override
+    public boolean transferLeadershipTo(final PeerId peer) {
         final ThreadId rid = this.replicatorMap.get(peer);
-        return rid != null && Replicator.transferLeadership(rid, logIndex);
+        return rid != null && Replicator.transferLeadership(rid);
     }
 
     @Override

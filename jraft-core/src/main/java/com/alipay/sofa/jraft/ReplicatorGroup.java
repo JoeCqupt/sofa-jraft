@@ -188,7 +188,16 @@ public interface ReplicatorGroup extends Describer {
      * @param logIndex log index
      * @return true on success
      */
+    @Deprecated
     boolean transferLeadershipTo(final PeerId peer, final long logIndex);
+
+    /**
+     * Transfer leadership to the given |peer|
+     *
+     * @param peer     target peer
+     * @return true on success
+     */
+    boolean transferLeadershipTo(final PeerId peer);
 
     /**
      * Stop transferring leadership to the given |peer|

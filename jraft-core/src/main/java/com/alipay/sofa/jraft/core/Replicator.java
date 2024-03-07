@@ -92,7 +92,7 @@ public class Replicator implements ThreadId.OnError {
     private volatile long                    nextIndex;
     private int                              consecutiveErrorTimes  = 0;
     private boolean                          hasSucceeded;
-    private long                             timeoutNowIndex;
+    private boolean                          timeoutNowPending;
     private volatile long                    lastRpcSendTimestamp;
     private volatile long                    heartbeatCounter       = 0;
     private volatile long                    probeCounter           = 0;
@@ -528,8 +528,8 @@ public class Replicator implements ThreadId.OnError {
     }
 
     @OnlyForTest
-    long getTimeoutNowIndex() {
-        return this.timeoutNowIndex;
+    boolean getTimeoutNowPending() {
+        return this.timeoutNowPending;
     }
 
     @OnlyForTest
@@ -750,7 +750,7 @@ public class Replicator implements ThreadId.OnError {
         }
         r.hasSucceeded = true;
         r.notifyOnCaughtUp(RaftError.SUCCESS.getNumber(), false);
-        if (r.timeoutNowIndex > 0 && r.timeoutNowIndex < r.nextIndex) {
+        if (r.timeoutNowPending && r.nextIndex == r.options.getLogManager().getLastLogIndex()) {
             r.sendTimeoutNow(false, false);
         }
         // id is unlock in _send_entriesheartbeatCounter
@@ -1542,7 +1542,7 @@ public class Replicator implements ThreadId.OnError {
         r.hasSucceeded = true;
         r.notifyOnCaughtUp(RaftError.SUCCESS.getNumber(), false);
         // dummy_id is unlock in _send_entries
-        if (r.timeoutNowIndex > 0 && r.timeoutNowIndex < r.nextIndex) {
+        if (r.timeoutNowPending && r.nextIndex == r.options.getLogManager().getLastLogIndex()) {
             r.sendTimeoutNow(false, false);
         }
         return true;
@@ -1743,7 +1743,7 @@ public class Replicator implements ThreadId.OnError {
                 // This RPC is issued by transfer_leadership, save this call_id so that
                 // the RPC can be cancelled by stop.
                 this.timeoutNowInFly = timeoutNow(rb, false, timeoutMs);
-                this.timeoutNowIndex = 0;
+                this.timeoutNowPending = false;
             } else {
                 timeoutNow(rb, true, timeoutMs);
             }
@@ -1840,24 +1840,24 @@ public class Replicator implements ThreadId.OnError {
         return r.lastRpcSendTimestamp;
     }
 
-    public static boolean transferLeadership(final ThreadId id, final long logIndex) {
+    public static boolean transferLeadership(final ThreadId id) {
         final Replicator r = (Replicator) id.lock();
         if (r == null) {
             return false;
         }
         // dummy is unlock in _transfer_leadership
-        return r.transferLeadership(logIndex);
+        return r.transferLeadership();
     }
 
-    private boolean transferLeadership(final long logIndex) {
-        if (this.hasSucceeded && this.nextIndex > logIndex) {
+    private boolean transferLeadership() {
+        if (this.hasSucceeded && this.nextIndex == this.options.getLogManager().getLastLogIndex()) {
             // _id is unlock in _send_timeout_now
             sendTimeoutNow(true, false);
             return true;
         }
         // Register log_index so that _on_rpc_return trigger
         // _send_timeout_now if _next_index reaches log_index
-        this.timeoutNowIndex = logIndex;
+        this.timeoutNowPending = true;
         unlockId();
         return true;
     }
@@ -1867,7 +1867,7 @@ public class Replicator implements ThreadId.OnError {
         if (r == null) {
             return false;
         }
-        r.timeoutNowIndex = 0;
+        r.timeoutNowPending = false;
         id.unlock();
         return true;
     }

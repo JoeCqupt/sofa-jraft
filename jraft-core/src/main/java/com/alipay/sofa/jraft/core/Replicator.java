@@ -543,6 +543,11 @@ public class Replicator implements ThreadId.OnError {
     }
 
     @OnlyForTest
+    void setNextIndex(long nextIndex) {
+        this.nextIndex = nextIndex;
+    }
+
+    @OnlyForTest
     Future<Message> getRpcInFly() {
         if (this.rpcInFly == null) {
             return null;
@@ -750,7 +755,7 @@ public class Replicator implements ThreadId.OnError {
         }
         r.hasSucceeded = true;
         r.notifyOnCaughtUp(RaftError.SUCCESS.getNumber(), false);
-        if (r.timeoutNowPending && r.nextIndex == r.options.getLogManager().getLastLogIndex()) {
+        if (r.timeoutNowPending && r.nextIndex > r.options.getLogManager().getLastLogIndex()) {
             r.sendTimeoutNow(false, false);
         }
         // id is unlock in _send_entriesheartbeatCounter
@@ -1542,7 +1547,7 @@ public class Replicator implements ThreadId.OnError {
         r.hasSucceeded = true;
         r.notifyOnCaughtUp(RaftError.SUCCESS.getNumber(), false);
         // dummy_id is unlock in _send_entries
-        if (r.timeoutNowPending && r.nextIndex == r.options.getLogManager().getLastLogIndex()) {
+        if (r.timeoutNowPending && r.nextIndex > r.options.getLogManager().getLastLogIndex()) {
             r.sendTimeoutNow(false, false);
         }
         return true;
@@ -1850,7 +1855,7 @@ public class Replicator implements ThreadId.OnError {
     }
 
     private boolean transferLeadership() {
-        if (this.hasSucceeded && this.nextIndex == this.options.getLogManager().getLastLogIndex()) {
+        if (this.hasSucceeded && this.nextIndex > this.options.getLogManager().getLastLogIndex()) {
             // _id is unlock in _send_timeout_now
             sendTimeoutNow(true, false);
             return true;

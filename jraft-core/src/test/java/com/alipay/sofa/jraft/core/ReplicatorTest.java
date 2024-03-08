@@ -515,9 +515,11 @@ public class ReplicatorTest {
     public void testTransferLeadership() {
         final Replicator r = getReplicator();
         this.id.unlock();
-        assertEquals(0, r.getTimeoutNowIndex());
-        assertTrue(Replicator.transferLeadership(this.id, 11));
-        assertEquals(11, r.getTimeoutNowIndex());
+        r.setHasSucceeded();
+        r.setNextIndex(9L);
+        assertEquals(false, r.getTimeoutNowPending());
+        assertTrue(Replicator.transferLeadership(this.id));
+        assertEquals(true, r.getTimeoutNowPending());
         assertNull(r.getTimeoutNowInFly());
     }
 
@@ -527,7 +529,7 @@ public class ReplicatorTest {
         Replicator.stopTransferLeadership(this.id);
         final Replicator r = getReplicator();
         this.id.unlock();
-        assertEquals(0, r.getTimeoutNowIndex());
+        assertEquals(false, r.getTimeoutNowPending());
         assertNull(r.getTimeoutNowInFly());
     }
 
@@ -536,16 +538,17 @@ public class ReplicatorTest {
         final Replicator r = getReplicator();
         this.id.unlock();
         r.setHasSucceeded();
-        assertEquals(0, r.getTimeoutNowIndex());
+        assertEquals(false, r.getTimeoutNowPending());
         assertNull(r.getTimeoutNowInFly());
 
         final RpcRequests.TimeoutNowRequest request = createTimeoutnowRequest();
         Mockito.when(
             this.rpcService.timeoutNow(Matchers.eq(this.opts.getPeerId().getEndpoint()), eq(request), eq(-1),
                 Mockito.any())).thenReturn(new FutureImpl<>());
+        Mockito.when(Mockito.spy(r).getRealNextIndex()).thenReturn(11L);
 
-        assertTrue(Replicator.transferLeadership(this.id, 10));
-        assertEquals(0, r.getTimeoutNowIndex());
+        assertTrue(Replicator.transferLeadership(this.id));
+        assertEquals(false, r.getTimeoutNowPending());
         assertNotNull(r.getTimeoutNowInFly());
     }
 
@@ -579,10 +582,10 @@ public class ReplicatorTest {
         final Replicator r = getReplicator();
         this.id.unlock();
         r.setHasSucceeded();
-        assertEquals(0, r.getTimeoutNowIndex());
+        assertEquals(false, r.getTimeoutNowPending());
         assertNull(r.getTimeoutNowInFly());
         assertTrue(Replicator.sendTimeoutNowAndStop(this.id, 10));
-        assertEquals(0, r.getTimeoutNowIndex());
+        assertEquals(false, r.getTimeoutNowPending());
         assertNull(r.getTimeoutNowInFly());
         final RpcRequests.TimeoutNowRequest request = createTimeoutnowRequest();
         Mockito.verify(this.rpcService).timeoutNow(Matchers.eq(this.opts.getPeerId().getEndpoint()), eq(request),
